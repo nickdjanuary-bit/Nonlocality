@@ -1,0 +1,40 @@
+name: Build REA offline dependencies
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/rea-dependencies.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+      - name: Install public REA package and dependencies
+        run: |
+          mkdir -p "$RUNNER_TEMP/rea-offline"
+          cd "$RUNNER_TEMP/rea-offline"
+          npm init -y
+          npm install --omit=dev --no-audit --no-fund --no-save rea-agents@6.4.0
+          node -e "console.log('REA:',require('./node_modules/rea-agents/package.json').version); console.log('Zod:',require('./node_modules/zod/package.json').version)"
+      - name: Create portable archive
+        run: |
+          cd "$RUNNER_TEMP/rea-offline"
+          tar -czf "$RUNNER_TEMP/rea-linux-x64-node24-dependencies.tar.gz" node_modules
+          sha256sum "$RUNNER_TEMP/rea-linux-x64-node24-dependencies.tar.gz" > "$RUNNER_TEMP/rea-linux-x64-node24-dependencies.sha256"
+      - name: Upload offline package
+        uses: actions/upload-artifact@v4
+        with:
+          name: rea-linux-x64-node24-dependencies
+          path: |
+            ${{ runner.temp }}/rea-linux-x64-node24-dependencies.tar.gz
+            ${{ runner.temp }}/rea-linux-x64-node24-dependencies.sha256
+          retention-days: 7
