@@ -1,0 +1,47 @@
+name: Check GitHub model access (no game data)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/check-model-access.yml'
+
+permissions:
+  contents: read
+  models: read
+
+jobs:
+  model-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check model inference without storing credentials or game assets
+        env:
+          GH_MODELS_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.error
+          url='https://models.github.ai/inference/chat/completions'
+          payload=json.dumps({
+            'model':'openai/gpt-4.1-mini',
+            'messages':[{'role':'user','content':'Respond with exactly: READY'}],
+            'max_tokens':12,
+          }).encode()
+          req=urllib.request.Request(url,data=payload,headers={
+            'Authorization':'Bearer '+os.environ['GH_MODELS_TOKEN'],
+            'Content-Type':'application/json',
+            'Accept':'application/vnd.github+json',
+          },method='POST')
+          try:
+            with urllib.request.urlopen(req,timeout=30) as response:
+              result=json.load(response)
+              print('MODEL_STATUS=SUCCESS')
+              print('MODEL_NAME='+str(result.get('model','unknown')))
+              print('MODEL_REPLY='+str(result.get('choices',[{}])[0].get('message',{}).get('content',''))[:80])
+          except urllib.error.HTTPError as error:
+            print('MODEL_STATUS=HTTP_ERROR_'+str(error.code))
+            print('BODY='+error.read(400).decode('utf8','replace'))
+          except Exception as error:
+            print('MODEL_STATUS=ERROR_'+type(error).__name__)
+            print('DETAIL='+str(error)[:240])
+          PY
