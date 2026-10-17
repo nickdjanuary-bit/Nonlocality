@@ -1,0 +1,38 @@
+name: Package Codex CLI for DART REA test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/package-codex.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package-codex:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Fetch Codex CLI and Linux executable
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/codex-pkg"
+          cd "$RUNNER_TEMP/codex-pkg"
+          npm init -y
+          npm install --no-save --omit=dev --no-audit --no-fund @openai/codex@latest
+          ./node_modules/.bin/codex --version
+          tar -czf "$GITHUB_WORKSPACE/codex-linux-x64-node24.tar.gz" node_modules
+          sha256sum "$GITHUB_WORKSPACE/codex-linux-x64-node24.tar.gz" > "$GITHUB_WORKSPACE/codex-linux-x64-node24.sha256"
+      - name: Upload offline tool package
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-linux-x64-node24
+          path: |
+            codex-linux-x64-node24.tar.gz
+            codex-linux-x64-node24.sha256
+          retention-days: 7
