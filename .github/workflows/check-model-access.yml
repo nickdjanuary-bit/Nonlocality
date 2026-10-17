@@ -34,10 +34,18 @@ jobs:
           },method='POST')
           try:
             with urllib.request.urlopen(req,timeout=30) as response:
-              result=json.load(response)
-              print('MODEL_STATUS=SUCCESS')
-              print('MODEL_NAME='+str(result.get('model','unknown')))
-              print('MODEL_REPLY='+str(result.get('choices',[{}])[0].get('message',{}).get('content',''))[:80])
+              raw=response.read(1024)
+              print('HTTP_STATUS='+str(response.status))
+              print('CONTENT_TYPE='+str(response.headers.get('Content-Type')))
+              print('BODY_LENGTH_SAMPLE='+str(len(raw)))
+              try:
+                result=json.loads(raw)
+                print('MODEL_STATUS=SUCCESS')
+                print('MODEL_NAME='+str(result.get('model','unknown')))
+                print('MODEL_REPLY='+str(result.get('choices',[{}])[0].get('message',{}).get('content',''))[:80])
+              except Exception:
+                print('MODEL_STATUS=NON_JSON_RESPONSE')
+                print('BODY_PREFIX='+repr(raw[:100]))
           except urllib.error.HTTPError as error:
             print('MODEL_STATUS=HTTP_ERROR_'+str(error.code))
             print('BODY='+error.read(400).decode('utf8','replace'))
