@@ -1,0 +1,36 @@
+name: Package public Mega CD BRAM reference
+
+on:
+  push:
+    paths:
+      - '.github/workflows/package-buram-reference.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Fetch pinned MIT-licensed source (no game data)
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none https://github.com/superctr/buram.git buram
+          cd buram
+          git checkout 98c27a650be9c8f8e35271f44f5d127ba450edb6
+          sha256sum buram.c COPYING README.md
+          gcc -O2 -Wall -Wextra -o buram buram.c
+          ./buram -cf /tmp/empty.brm -s 8192
+          ./buram -if /tmp/empty.brm
+      - name: Upload source and test receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-buram-reference
+          path: |
+            buram/buram.c
+            buram/COPYING
+            buram/README.md
+            buram/buram
+          retention-days: 2
